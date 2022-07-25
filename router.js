@@ -11,7 +11,7 @@ router.get('/about', function(req, res){
 })
 
 //router.post('/create-post', postController.create)
-//router.post('/login', userController.login)
+router.post('/login', userController.login)
 
 
 module.exports = router
