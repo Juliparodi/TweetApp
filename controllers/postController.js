@@ -1,3 +1,3 @@
-exports.create = function(req, res){
-    res.send('created')
+exports.viewCreateScreen = function(req, res){
+    res.render('create-post')
 }
