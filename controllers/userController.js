@@ -1,9 +1,10 @@
 const User = require("../models/User");
+const Post = require("../models/Post");
 
 exports.register = function(req, res){
     let user = new User(req.body)
     user.register().then(() => {
-        req.session.user = {userName: user.data.username, avatar: user.avatar}
+        req.session.user = {userName: user.data.username, avatar: user.avatar, _id: user.data._id}
         req.session.save(function(){
             res.redirect('/')
         })
@@ -20,7 +21,7 @@ exports.register = function(req, res){
 exports.loginPromise = function(req, res) {
     let user = new User(req.body)
     user.loginPromise().then(function(result) {
-      req.session.user = {avatar: user.avatar, username: user.data.username}
+      req.session.user = {avatar: user.avatar, username: user.data.username, _id: user.data._id}
       req.session.save(function() {
         res.redirect('/')
       })
@@ -63,9 +64,29 @@ exports.mustBeLoggedIn = function(req, res, next){
 
 exports.home = function(req, res){
     if(req.session.user){
-        console.log("dashboard?")
         res.render('home-dashboard')
     } else {
-        console.log("guest?")
-        res.render('home-guest', {errors: req.flash('errors'), regErrors: req.flash('regErrors')})}
+        res.render('home-guest', {regErrors: req.flash('regErrors')})}
     }
+
+ exports.ifUserExists = function(req, res, next) {
+     User.findByUserName(req.params.username).then(function(userDocument) {
+        req.profileUser = userDocument
+        next()
+    }).catch(function() {
+        res.render("404")
+    })
+    }
+
+exports.profilePostScreen = function(req, res){
+//ask our post model for posts by certain author id
+    Post.findByAuthorId(req.profileUser._id).then(function(posts){
+        res.render('profile', {
+            posts: posts,
+            profileUsername: req.profileUser.username,
+            profileAvatar: req.profileUser.avatar
+        })
+    }).catch(function(){
+        res.render('404')
+    })
+}

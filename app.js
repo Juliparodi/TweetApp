@@ -3,6 +3,9 @@ const mongoStore = require('connect-mongo')
 const session = require('express-session')
 const cookieParser = require("cookie-parser")
 const flash = require('connect-flash')
+const mark = require('marked')
+const sanitizeHTML = require('sanitize-html')
+
 
 
 const app = express()
@@ -20,10 +23,24 @@ app.use(flash())
 app.use(cookieParser());
 
 app.use(function(req, res, next){
-    // make user session data available from within view templates
+  //make our mark down function available within view templates
+  res.locals.filterUserHtml = function(content){
+    return sanitizeHTML(mark.parse(content), {allowedTags: ['p', 'br', 'ul', 'ol', 'li', 'strong', 'bold'], allowedAttributes: {}})
+  }
+
+  //make all error and success messages available in all templates
+  res.locals.errors = req.flash('errors')
+  res.locals.success = req.flash('success')
+
+  //make current user id available on the req object
+  if(req.session.user){
+    req.visitorId = req.session.user._id
+  } else{
+    req.visitorId = 0
+  }
+
+  // make user session data available from within view templates
 res.locals.user = req.session.user
-console.log("pasa x aca")
-console.log(res.locals.user)
 next()
 })
 

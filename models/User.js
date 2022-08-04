@@ -3,9 +3,11 @@ const usersCollection = require('../db').db().collection("users")
 const bcrypt = require('bcryptjs')
 const md5 = require('md5')
 
-let User = function(data){
+let User = function(data, getAvatar){
     this.data = data
     this.errors = []
+    if(getAvatar==undefined){getAvatar = false}
+    if(getAvatar){this.getAvatar()}
 }
 
 User.prototype.register = function(){
@@ -97,6 +99,30 @@ User.prototype.validate = function(){
 
 User.prototype.getAvatar = function(){
     this.avatar = `https://gravatar.com/avatar/${md5(this.data.email)}?s=128`
+}
+
+User.findByUserName = function(username){
+return new Promise(function(resolve, reject) {
+    if(typeof(username) != "string"){
+        reject()
+        return
+    }
+    usersCollection.findOne({username: username}).then(function(user){
+        if (user) {
+            user = new User(user, true)
+            user = {
+                _id: user.data._id,
+                username: user.data.username,
+                avatar: user.avatar
+            }
+            resolve(user)
+        } else{
+            reject()
+        }
+    }).catch(function(error){
+        reject()
+    })
+})
 }
 
 module.exports = User
