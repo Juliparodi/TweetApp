@@ -24,7 +24,7 @@ exports.create = async function(req, res){
 exports.viewSingle = async function(req, res){
     try{
         let post = await Post.findSinglePostById(req.params.id, req.visitorId)
-        res.render('single-post-screen', {post: post})
+        res.render('single-post-screen', {post: post, title: post.title})
     } catch{
         res.render('404')
     }
@@ -32,7 +32,7 @@ exports.viewSingle = async function(req, res){
 
 exports.viewEditScreen = async function(req, res) {
     try {
-      let post = await Post.findSingleById(req.params.id, req.visitorId)
+      let post = await Post.findSinglePostById(req.params.id, req.visitorId)
       if (post.isVisitorOwner) {
         res.render("edit-post", {post: post})
       } else {
@@ -81,10 +81,17 @@ exports.deletePost = function(req, res){
         })
 
     }).catch(function(){
-        console.log('catch?')
         req.flash('errors', 'you do not have permissions to perform this action')
         req.session.save(function(){
             res.redirect('/')
         })
+    })
+}
+
+exports.search = function(req, res){
+    Post.search(req.body.searchTerm).then(data => {
+        res.json(data)
+    }).catch(() => {
+        res.json([])
     })
 }

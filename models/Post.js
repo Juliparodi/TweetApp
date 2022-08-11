@@ -2,9 +2,15 @@ const { ObjectId } = require('mongodb')
 const { post } = require('../router')
 
 const postCollection = require('../db').db().collection("posts")
+const followsCollection = require('../db').db().collection("follows")
+
 const ObjectID = require('mongodb').ObjectID
 const User = require('./User')
 const sanitizeHtml = require('sanitize-html')
+
+//create and delete indexes
+//postsCollection.createIndex({title: "text", body: "text"})
+//postsCollection.dropIndex("namehere")
 
 let Post = function(data, userId, requestedPostId){
     this.data = data
@@ -61,7 +67,7 @@ Post.prototype.actuallyUpdate = function(){
     })
 }
 
-Post.reusablePostQuery = function(uniqueOperations, visitorId){
+Post.reusablePostQuery = function(uniqueOperations, visitorId, finalOperations = []){
     return new Promise(async (resolve, reject) => {
         let aggOperations = uniqueOperations.concat([
             {$lookup: {from: "users", localField: "author", foreignField: "_id", as: "authorDocument"}},
@@ -74,14 +80,15 @@ Post.reusablePostQuery = function(uniqueOperations, visitorId){
                     $arrayElemAt: ["$authorDocument", 0]
                 }
             }}
-        ])
+        ]).concat(finalOperations)
 
         let posts = await postCollection.aggregate(aggOperations).toArray()
 
         //clean up author property in each post object
         posts = posts.map(function(post){
            post.isVisitorOwner = post.authorId.equals(visitorId)
-           
+           post.authorId = undefined
+
             post.author = {
                 username: post.author.username,
                 avatar: new User(post.author, true).avatar
@@ -154,6 +161,57 @@ Post.prototype.cleanUp = function(){
         author: ObjectID(this.userId)
     } 
 }
+
+Post.search = function(searchTerm){
+    return new Promise(async (resolve, reject) => {
+        try{
+            if(typeof(searchTerm) == "string"){
+                let posts = await Post.reusablePostQuery([
+                    {$match: {$text: {$search: searchTerm}}},
+                ], undefined, [{$sort: {score: {$meta: "textScore"}}}])
+                resolve(posts)
+            } else {
+                reject()
+            }
+
+        } catch {
+            reject()
+        }
+    })
+}
+
+Post.countPostsByAuthor = function(id){
+    return new Promise(async (resolve, reject) => {
+        try{
+            let postCount = await postCollection.countDocuments({author: id})
+            resolve(postCount)
+        } 
+        catch {
+            reject()
+        }
+    })
+}
+
+Post.getFeed = async function(id){
+    
+        try{
+            //create an array of the users id that the user is following
+            let followedUsers = await followsCollection.find({authorId: new ObjectId(id)}).toArray()
+            followedUsers = followedUsers.map(function(followDoc){
+                return followDoc.followedId 
+            })
+
+            //look for the posts where the author is in the above array of followed users
+            return Post.reusablePostQuery([
+                {$match: {author: {$in: followedUsers}}},
+                {$sort: {createdDate: -1}}
+            ])
+        } 
+        catch {
+            reject()
+        }
+    }
+
 
 
 module.exports = Post

@@ -3,15 +3,13 @@ const mongoStore = require('connect-mongo')
 const session = require('express-session')
 const cookieParser = require("cookie-parser")
 const flash = require('connect-flash')
-const mark = require('marked')
-const sanitizeHTML = require('sanitize-html')
-
-
-
+const markdown = require("marked")
+const csrf = require("csurf")
+const sanitizeHTML = require("sanitize-html")
 const app = express()
 
 let sessionOptions = session({
-  secret: "Love Javascript and Java",
+  secret: "I'm Julian and this is my secret",
   store: mongoStore.create({client: require('./db')}),
   resave: false,
   saveUninitialized: false,
@@ -23,9 +21,15 @@ app.use(flash())
 app.use(cookieParser());
 
 app.use(function(req, res, next){
-  //make our mark down function available within view templates
-  res.locals.filterUserHtml = function(content){
-    return sanitizeHTML(mark.parse(content), {allowedTags: ['p', 'br', 'ul', 'ol', 'li', 'strong', 'bold'], allowedAttributes: {}})
+    // make user session data available from within view templates
+res.locals.user = req.session.user
+next()
+})
+
+app.use(function (req, res, next) {
+  // make our markdown function available from within ejs templates
+  res.locals.filterUserHTML = function (content) {
+    return sanitizeHTML(markdown.parse(content), { allowedTags: ["p", "br", "ul", "ol", "li", "strong", "bold", "i", "em", "h1", "h2", "h3", "h4", "h5", "h6"], allowedAttributes: {} })
   }
 
   //make all error and success messages available in all templates
@@ -40,24 +44,58 @@ app.use(function(req, res, next){
   }
 
   // make user session data available from within view templates
-res.locals.user = req.session.user
-next()
+  res.locals.user = req.session.user
+  next()
 })
 
 const router = require('./router')
 
 app.use(express.urlencoded({encoded:false}))
+app.use(express.urlencoded({extended: false}))
 app.use(express.json())
 app.use(express.static('public'))
 app.set('views', 'views')
 app.set('view engine', 'ejs')
 
+app.use(csrf())
+
+app.use(function (req, res, next) {
+  res.locals.csrfToken = req.csrfToken()
+  next()
+})
+
 app.use('/', router)
 
-module.exports = app
+app.use(function (err, req, res, next) {
+  if (err) {
+    if (err.code == "EBADCSRFTOKEN") {
+      req.flash("errors", "Cross site request forgery detected.")
+      req.session.save(() => res.redirect("/"))
+    } else {
+      res.render("404")
+    }
+  }
+})
+
+const server = require("http").createServer(app)
+const io = require("socket.io")(server)
+
+io.use(function (socket, next) {
+  sessionOptions(socket.request, socket.request.res, next)
+})
+
+io.on("connection", function (socket) {
+  if (socket.request.session.user) {
+    let user = socket.request.session.user
+
+    socket.emit("welcome", { username: user.username, avatar: user.avatar })
+
+    socket.on("chatMessageFromBrowser", function (data) {
+      socket.broadcast.emit("chatMessageFromServer", { message: sanitizeHTML(data.message, { allowedTags: [], allowedAttributes: {} }), username: user.username, avatar: user.avatar })
+    })
+  }
+})
 
 
-//app.get('/', function(req, res){
-  //  res.render('home-guest')})
-
+module.exports = server
 

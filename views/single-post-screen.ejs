@@ -10,6 +10,7 @@
         <span class="pt-2">
           <a href="/post/<%= post._id %>/edit " class="text-primary mr-2" data-toggle="tooltip" data-placement="top" title="Edit"><i class="fas fa-edit"></i></a>
           <form class="delete-post-form d-inline" action="/post/<%= post._id %>/delete" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button class="delete-post-button text-danger" data-toggle="tooltip" data-placement="top" title="Delete"><i class="fas fa-trash"></i></button>
           </form>
         </span>
@@ -18,11 +19,11 @@
     </div>
       
     <p class="text-muted small mb-4">
-      <a href="#"><img class="avatar-tiny" src="<%= post.author.avatar %>"></a>
+      <a href="/profile/<%= post.author.username %>"><img class="avatar-tiny" src="<%= post.author.avatar %>"></a>
       Posted by <a href="/profile/<%= post.author.username %>"><%= post.author.username %></a> <%= post.createdDate.getMonth() + 1 %>/<%= post.createdDate.getDate() %>/<%= post.createdDate.getFullYear() %></p>
 
     <div class="body-content">
-      <%- filterUserHtml(post.body) %>
+      <%- filterUserHTML(post.body) %>
     </div>
   </div>
   

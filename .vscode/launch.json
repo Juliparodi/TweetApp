@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Api Dev",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "watch"],
+            "runtimeVersion": "14.17.0"
+        },
+        {
             "type": "pwa-node",
             "request": "launch",
             "name": "Launch Program",
